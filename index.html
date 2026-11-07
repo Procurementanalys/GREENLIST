@@ -2492,6 +2492,14 @@ th { color: #5c7d6d; }
   .edge-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.22s ease; }
   body.collapsed .edge-toggle svg { transform: rotate(180deg); }
 }
+
+/* ---- Filter per menu ---- */
+.fbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 0 0 16px; padding: 12px 16px; background: var(--surf); border: 1px solid var(--line); border-radius: 16px; }
+.fbar .fl { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--mute); }
+.fbar select { min-width: 150px; max-width: 260px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; }
+.fbar .btn { padding: 8px 14px; }
+.fbar .btn.xl { margin-left: auto; background: var(--brand); color: #fff; border-color: transparent; }
+@media (max-width: 600px) { .fbar .fl, .fbar select { width: 100%; max-width: none; } .fbar .btn.xl { margin-left: 0; } }
 </style>
   </head>
   <body>
@@ -3464,7 +3472,7 @@ th { color: #5c7d6d; }
 
       function render() {
         const ks = Object.keys(MONTHS).sort(),
-          ck = ks[ks.length - 1];
+          ck = curK();
         cur = MONTHS[ck];
         B = be(cur);
         const [cy, mo] = ck.split("-").map(Number),
@@ -3562,17 +3570,18 @@ th { color: #5c7d6d; }
             d: pct(x[3], x[3] + x[1]),
           };
         });
-        $("focus").innerHTML = R.filter((r) => r.pq > 0)
+        RC = R.filter(cvOK);
+        $("focus").innerHTML = RC.filter((r) => r.pq > 0)
           .sort((a, b) => a.c - b.c)
           .slice(0, 3)
           .map((r) => `<div class="chip">${r.cn}<small>${nf(r.c)}% vs ${r.pn}</small></div>`)
           .join("");
-        const tp = R.reduce((z, r) => z + r.pq, 0), tc = R.reduce((z, r) => z + r.cq, 0),
-          hi = R.filter((r) => r.c >= 50).length, lw = R.filter((r) => r.pq > 0).sort((a, b) => a.c - b.c)[0];
+        const tp = RC.reduce((z, r) => z + r.pq, 0), tc = RC.reduce((z, r) => z + r.cq, 0),
+          hi = RC.filter((r) => r.c >= 50).length, lw = RC.filter((r) => r.pq > 0).sort((a, b) => a.c - b.c)[0];
         $("cvsum").innerHTML = [
           ["Konversi unit keseluruhan", nf(uconv(cur)) + "%", nf(tc, 0) + " unit Greenlist dari " + nf(tc + tp, 0) + " unit"],
           ["Konversi rupiah keseluruhan", nf(vc) + "%", "Penjualan Greenlist " + rp(cur.gl) + " vs Popular " + rp(cur.pop)],
-          ["Brand di atas 50%", hi + " dari " + R.length, "Pasangan Greenlist dan Popular"],
+          ["Brand di atas 50%", hi + " dari " + RC.length, "Pasangan Greenlist dan Popular"],
           ["Perlu perhatian utama", lw ? lw.cn : "-", lw ? nf(lw.c) + "% unit vs " + lw.pn : ""],
         ].map((k) => `<div><small>${k[0]}</small><b>${k[1]}</b><em>${k[2]}</em></div>`).join("");
         $("th3").textContent = "Greenlist vs Popular, " + bl + (dn ? ` (1\u2013${cur.de})` : "");
@@ -3584,6 +3593,7 @@ th { color: #5c7d6d; }
         rt2();
         moi();
         homeX();
+        fbuild();
       }
 
       // ============================================================
@@ -3726,6 +3736,7 @@ th { color: #5c7d6d; }
             : "Garis menunjukkan arah tren, batang menunjukkan nilainya. Angka berpanah: hijau ▲ = naik, merah ▼ = turun dibanding bulan sebelumnya.";
         let out = "";
         Object.entries(MT).forEach(([k, [nm, f, fm, bk]]) => {
+          if (FILT.met && FILT.met !== k) return;
           const isP = !bk,
             bv = bk && cur.de < cur.dm ? B[bk] : null,
             act = S[5].d ? f(S[5].d) : null,
@@ -3783,14 +3794,14 @@ th { color: #5c7d6d; }
           return `<article class="card tcard"><div class="thd"><div><h3>${title}</h3><p class="sub">${sub}</p></div><div class="tval"><b>${a === null ? "-" : fm(a)}</b>${d === null ? "" : pill(`${d >= 0 ? "\u25B2" : "\u25BC"} ${nf(Math.abs(d))}% vs ${S[4].l}`, d >= 0)}</div></div>${svg}</article>`;
         };
         const eS = S.map((o, i) => (o.d ? (i === 5 ? B.eth : o.d.eth) : null));
-        out += xc("Penjualan dan Margin Ethical (Officer)", S[5].n + (dnow ? ", BE" : ""), eS, rp,
+        if (!FILT.met || FILT.met === "eth") out += xc("Penjualan dan Margin Ethical (Officer)", S[5].n + (dnow ? ", BE" : ""), eS, rp,
           stackSvg(lbl, [
             { name: "Margin laba Ethical (GP \u00f7 Penjualan)", type: "line", pp: true, vals: S.map((o) => (o.d ? pct(o.d.ethGP, o.d.eth) : null)), fm: (q) => nf(q) + "%", color: "var(--brand2)" },
             { name: "Penjualan Ethical (Officer)", type: "bar", vals: eS, fm: rp, color: "var(--eth)", est: dnow, act: cur.eth },
           ]));
         const un = (d, c, g) => (d.pr ? MASTER.pairs.reduce((z, r) => { const x = d.pr[r[6]]; return z + (x ? (g ? x[2] * r[8] : x[0] * r[5]) : 0); }, 0) * (c ? fx : 1) : null);
         const gU = S.map((o, i) => (o.d ? un(o.d, i === 5, true) : null)), pU = S.map((o, i) => (o.d ? un(o.d, i === 5, false) : null));
-        out += xc("Unit terjual: Greenlist vs Popular", S[5].n + (dnow ? ", BE" : "") + ", brand berpasangan", gU, (q) => nf(q, 0),
+        if (!FILT.met || FILT.met === "unit") out += xc("Unit terjual: Greenlist vs Popular", S[5].n + (dnow ? ", BE" : "") + ", brand berpasangan", gU, (q) => nf(q, 0),
           stackSvg(lbl, [
             { name: "Unit Greenlist terjual", type: "line", vals: gU, fm: (q) => nf(q, 0), color: "var(--gl)" },
             { name: "Unit Popular terjual", type: "bar", vals: pU, fm: (q) => nf(q, 0), color: "var(--brand2)" },
@@ -3823,7 +3834,7 @@ th { color: #5c7d6d; }
       $("q").oninput = () => rt();
       function rt() {
         const q = $("q").value.toLowerCase();
-        const rows = R.filter((r) => (r.ai + r.pn + r.cn).toLowerCase().includes(q)).sort(
+        const rows = RC.filter((r) => (r.ai + r.pn + r.cn).toLowerCase().includes(q)).sort(
           (a, b) => (a[sk] > b[sk] ? 1 : -1) * sd,
         );
         const L = (i) => `data-label="${cols[i][0]}"`;
@@ -3903,24 +3914,25 @@ th { color: #5c7d6d; }
             cu: a[4] + a[5] ? pct(a[4], a[4] + a[5]) : null,
             cv: a[2] + a[3] ? pct(a[2], a[2] + a[3]) : null,
           }));
-        const E = RS.reduce((z, r) => z + r.e, 0),
-          G = RS.reduce((z, r) => z + r.g, 0),
-          act = RS.filter((r) => r.g > 0).length;
+        const RSX = RS.filter(stF);
+        const E = RSX.reduce((z, r) => z + r.e, 0),
+          G = RSX.reduce((z, r) => z + r.g, 0),
+          act = RSX.filter((r) => r.g > 0).length;
         $("stsum").textContent =
-          `${RS.length} toko. Total Ethical ${rp(E)}, Greenlist ${rp(G)} (${nf(pct(G, E))}%). ${act} toko sudah menjual Greenlist.`;
-        const top = RS.slice().sort((a, b) => b.k - a.k)[0], low = RS.filter((r) => r.k < 3).length,
-          cvt = pct(RS.reduce((z, r) => z + r.uc, 0), RS.reduce((z, r) => z + r.uc + r.up, 0));
+          `${RSX.length} toko. Total Ethical ${rp(E)}, Greenlist ${rp(G)} (${nf(pct(G, E))}%). ${act} toko sudah menjual Greenlist.`;
+        const top = RSX.slice().sort((a, b) => b.k - a.k)[0], low = RSX.filter((r) => r.k < 3).length,
+          cvt = pct(RSX.reduce((z, r) => z + r.uc, 0), RSX.reduce((z, r) => z + r.uc + r.up, 0));
         $("stk").innerHTML = [
-          ["Toko aktif menjual Greenlist", act + " dari " + RS.length, nf(pct(act, RS.length)) + "% toko"],
+          ["Toko aktif menjual Greenlist", act + " dari " + RSX.length, nf(pct(act, RSX.length)) + "% toko"],
           ["Kontribusi Greenlist total", nf(pct(G, E)) + "%", rp(G) + " dari Ethical " + rp(E)],
           ["Kontribusi tertinggi", top ? nf(top.k) + "%" : "-", top ? top.s : ""],
           ["Toko kontribusi di bawah 3%", low + " toko", "Konversi unit AV " + nf(cvt) + "%"],
         ].map((k) => `<div><small>${k[0]}</small><b>${k[1]}</b><em>${k[2]}</em></div>`).join("");
         const rf = (x) => "Rp " + Math.round(x).toLocaleString("id-ID");
-        const mk = Math.max(1, ...RS.map((r) => r.k)),
+        const mk = Math.max(1, ...RSX.map((r) => r.k)),
           q = $("q2").value.toLowerCase(),
           v = (x) => (x === null ? -1 : x);
-        const rows = RS.filter((r) => r.s.toLowerCase().includes(q)).sort(
+        const rows = RSX.filter((r) => r.s.toLowerCase().includes(q)).sort(
           (a, b) => (sk2 === "s" ? (a.s > b.s ? 1 : -1) : v(a[sk2]) - v(b[sk2])) * sd2,
         );
         const bar = (x, w) =>
@@ -3999,6 +4011,7 @@ th { color: #5c7d6d; }
           .join("");
         const stop = (msg) => {
           PGS.moi = "Unggah Sales GP dan SOH (dengan kolom SOH Qty) di menu Data sumber untuk mengisi halaman ini";
+          MOIX = null;
           $("moik").innerHTML = "";
           $("moisum").textContent = msg;
           $("moitb").innerHTML = `<tr><td colspan="${cols.length}">${msg}</td></tr>`;
@@ -4028,7 +4041,7 @@ th { color: #5c7d6d; }
               ps = z ? z[2 * i + 1] : 0,
               gq = (a ? a.v[2 * i] : 0) * f,
               pq = (a ? a.v[2 * i + 1] : 0) * f;
-            if (gs || ps || gq || pq)
+            if ((gs || ps || gq || pq) && moiF(c, i, gs, gq, ps, pq))
               D.push({ c, i, s: nm, it: p[0], sub: `${p[7]} \u00b7 ${p[4]}`, gs, gq, gm: est(gs, gq), ps, pq, pm: est(ps, pq) });
           });
         });
@@ -4078,6 +4091,7 @@ th { color: #5c7d6d; }
               y = msk === "s" || msk === "it" ? String(b[msk]) : v(b[msk]);
             return (x > y ? 1 : x < y ? -1 : 0) * msd;
           });
+        MOIX = { view, cols, rows };
         const N = rows.length,
           NP = Math.max(1, Math.ceil(N / mps));
         mpg = Math.min(Math.max(0, mpg), NP - 1);
@@ -4429,14 +4443,14 @@ th { color: #5c7d6d; }
       const dlong = (k) => +k.slice(8) + " " + FN[+k.slice(5, 7) - 1] + " " + k.slice(0, 4);
       function gbase() {
         const ks = Object.keys(MONTHS).sort(),
-          ck = ks[ks.length - 1],
+          ck = curK(),
           d = MONTHS[ck],
           f = d.de < d.dm ? d.dm / d.de : 1,
           b = be(d);
         return { ck, gp: b.glGP, hpp: (d.gl - d.glGP) * f, gpe: b.ethGP, hppe: (d.eth - d.ethGP) * f };
       }
       const curBE = () => {
-        const d = MONTHS[Object.keys(MONTHS).sort().pop()];
+        const d = MONTHS[curK()];
         return !!d && d.de < d.dm;
       };
       const gv = (t, B) => {
@@ -4485,6 +4499,7 @@ th { color: #5c7d6d; }
         $("gch").innerHTML = s;
       }
       function gmr() {
+        GMX = null;
         const B = gbase(),
           ds = Object.keys(STK)
             .filter((k) => k.length === 10)
@@ -4497,7 +4512,7 @@ th { color: #5c7d6d; }
           $("gch").innerHTML = '<p class="sub">Belum ada bulan yang punya penjualan dan stok sekaligus.</p>';
           return;
         }
-        const L = ds[ds.length - 1],
+        const L = ds.filter((k) => k.startsWith(B.ck)).pop() || ds[ds.length - 1],
           t = STK[L],
           inM = ds.filter((k) => k.startsWith(B.ck)),
           a = (p) => (inM.length ? inM.reduce((z, k) => z + sv(STK[k], p), 0) / inM.length : sv(t, p));
@@ -4553,10 +4568,10 @@ th { color: #5c7d6d; }
             z = w + s;
           return `<tr><td>${n}</td><td class="n">${rp(w)}</td><td class="n">${rp(s)}</td><td class="n"><b>${rp(z)}</b></td><td class="n">${nf(pct(w, z))}%</td></tr>`;
         };
-        $("gtb").innerHTML =
-          row("Greenlist", "gl") +
-          row("Popular (pasangan Greenlist)", "pop") +
-          row("Ethical (Officer)", "eth");
+        $("gtb").innerHTML = [["Greenlist", "gl"], ["Popular (pasangan Greenlist)", "pop"], ["Ethical (Officer)", "eth"]]
+          .filter((g) => !FILT.grp || FILT.grp === g[1])
+          .map((g) => row(g[0], g[1]))
+          .join("");
         const mm = S.map((s) => {
           const dk = ds.filter((x) => x.startsWith(s.k)),
             d = s.d;
@@ -4580,6 +4595,7 @@ th { color: #5c7d6d; }
           mm.length < 2
             ? "Baru 1 bulan terisi. Tren terisi seiring bulan berjalan dan stok harian diunggah."
             : "Stok bulanan = AV stok harian. " + (curBE() ? "Bulan berjalan memakai GP dan HPP BE. " : "") + "Angka berpanah = perubahan dibanding bulan sebelumnya.";
+        GMX = { kp, mm, t, L };
       }
       function doSoh(rows, dk) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dk || "")) return toast("Pilih tanggal stok dulu di kotak tanggal.");
@@ -4703,7 +4719,7 @@ th { color: #5c7d6d; }
       // ============================================================
       function curLabel() {
         const ks = Object.keys(MONTHS).sort(),
-          ck = ks[ks.length - 1];
+          ck = curK();
         return { ck, bl: FN[+ck.slice(5) - 1] + " " + ck.slice(0, 4) };
       }
       function buildReport() {
@@ -5198,6 +5214,173 @@ th { color: #5c7d6d; }
       $("xpdf").onclick = exportPdf;
       $("xxls").onclick = exportXlsx;
 
+      // ============================================================
+      // 10b. FILTER & EKSPOR EXCEL PER MENU
+      // ============================================================
+      const FILT = { month: "", met: "", ai: "", pr: "", cv: "", kont: "", grp: "", mt: "", ma: "", ms: "" };
+      let RC = [], GMX = null, MOIX = null;
+      const curK = () => {
+        const ks = Object.keys(MONTHS).sort();
+        return FILT.month && MONTHS[FILT.month] ? FILT.month : ks[ks.length - 1];
+      };
+      const cvOK = (r) => (!FILT.ai || r.ai === FILT.ai) && (!FILT.pr || r.pr === FILT.pr) && (!FILT.cv || (FILT.cv === "lo" ? r.c < 50 : r.c >= 50));
+      const stF = (r) => !FILT.kont || (FILT.kont === "act" ? r.g > 0 : FILT.kont === "none" ? !(r.g > 0) : FILT.kont === "lt3" ? r.k < 3 : r.k >= 3);
+      const moiF = (c, i, gs, gq, ps, pq) => {
+        if (FILT.mt && c !== FILT.mt) return false;
+        if (FILT.ma && MASTER.pairs[i][0] !== FILT.ma) return false;
+        if (FILT.ms && ((FILT.ms === "nj") !== ((gs > 0 && !gq) || (ps > 0 && !pq)))) return false;
+        return true;
+      };
+      const uq = (i) => [...new Set(MASTER.pairs.map((p) => p[i]))].filter(Boolean).sort().map((x) => [x, x]);
+      const ALL = [["", "Semua"]];
+      const FC = { ringkasan: ["month"], tren: ["month", "met"], conv: ["month", "ai", "pr", "cv"], store: ["month", "kont"], gmroi: ["month", "grp"], moi: ["mt", "ma", "ms"] };
+      const FDEF = {
+        month: ["Periode", () => [["", "Terbaru"]].concat(Object.keys(MONTHS).sort().reverse().map((k) => [k, FN[+k.slice(5) - 1] + " " + k.slice(0, 4) + (MONTHS[k].de < MONTHS[k].dm ? " (1\u2013" + MONTHS[k].de + ")" : "")]))],
+        met: ["Metrik", () => [["", "Semua"], ["penjualan", "Penjualan Greenlist"], ["gp", "GP dan margin Greenlist"], ["share", "Kontribusi Greenlist"], ["conv", "Konversi Greenlist"], ["eth", "Ethical (Officer)"], ["unit", "Unit Greenlist vs Popular"]]],
+        ai: ["Zat aktif", () => ALL.concat(uq(0))],
+        pr: ["Pareto", () => ALL.concat(uq(1))],
+        cv: ["Konversi unit", () => [["", "Semua"], ["lo", "Di bawah 50%"], ["hi", "50% ke atas"]]],
+        kont: ["Kontribusi Greenlist", () => [["", "Semua toko"], ["act", "Sudah menjual Greenlist"], ["none", "Belum menjual"], ["lt3", "Di bawah 3%"], ["ge3", "3% ke atas"]]],
+        grp: ["Kelompok stok", () => [["", "Semua"], ["gl", "Greenlist"], ["pop", "Popular"], ["eth", "Ethical"]]],
+        mt: ["Toko", () => ALL.concat(DET.sales ? Object.entries(DET.sales.q).filter((e) => e[0] !== "1001").map((e) => [e[0], e[0] + " - " + (e[1].n || "")]).sort((a, b) => (a[1] > b[1] ? 1 : -1)) : [])],
+        ma: ["Zat aktif", () => ALL.concat(uq(0))],
+        ms: ["Status stok", () => [["", "Semua"], ["nj", "Ada stok, tanpa penjualan"], ["aj", "Ada penjualan"]]],
+      };
+      function fbuild() {
+        Object.keys(FC).forEach((p) => {
+          const pg = document.querySelector(`.page[data-p="${p}"]`);
+          if (!pg) return;
+          let el = pg.querySelector(":scope > .fbar");
+          if (!el) {
+            el = document.createElement("div");
+            el.className = "fbar";
+            el.dataset.p = p;
+            pg.insertBefore(el, pg.firstChild);
+          }
+          el.innerHTML =
+            FC[p].map((k) => `<label class="fl"><span>${FDEF[k][0]}</span><select data-f="${k}">${FDEF[k][1]().map((o) => `<option value="${esc(o[0])}"${FILT[k] === o[0] ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></label>`).join("") +
+            '<button type="button" class="btn" data-a="reset">Reset filter</button><button type="button" class="btn xl" data-a="xl">Ekspor Excel</button>';
+        });
+      }
+      document.addEventListener("change", (e) => {
+        const s = e.target.closest && e.target.closest(".fbar select");
+        if (!s) return;
+        const pp = s.closest(".fbar").dataset.p;
+        FILT[s.dataset.f] = s.value;
+        mpg = 0;
+        render();
+        $("per").textContent = PGS[pp] || "";
+      });
+      document.addEventListener("click", (e) => {
+        const b = e.target.closest && e.target.closest(".fbar button");
+        if (!b) return;
+        const p = b.closest(".fbar").dataset.p;
+        if (b.dataset.a === "reset") {
+          FC[p].forEach((k) => (FILT[k] = ""));
+          mpg = 0;
+          render();
+          $("per").textContent = PGS[p] || "";
+        } else xlRun(p);
+      });
+      const ftxt = (p) =>
+        FC[p].filter((k) => k !== "month" && FILT[k]).map((k) => FDEF[k][0] + " " + FDEF[k][1]().find((o) => o[0] === FILT[k])[1]).concat(
+          (({ conv: "q", store: "q2", moi: "moiq" })[p] && $(({ conv: "q", store: "q2", moi: "moiq" })[p]).value) ? ["Cari \"" + $(({ conv: "q", store: "q2", moi: "moiq" })[p]).value + "\""] : [],
+        ).join("; ");
+      async function xlExport(file, sheets) {
+        if (typeof ExcelJS === "undefined") return toast("Library Excel belum termuat. Cek koneksi internet lalu coba lagi.", 5000);
+        const wb = new ExcelJS.Workbook(), fl = (c) => ({ type: "pattern", pattern: "solid", fgColor: { argb: c } });
+        const FM = { rp: "#,##0", n0: "#,##0", n1: "#,##0.0", pct: "0.0%", txt: "@" };
+        wb.creator = "Tinjauan Greenlist";
+        sheets.forEach((sh) => {
+          const ws = wb.addWorksheet(sh.name, { views: [{ state: "frozen", ySplit: 4, showGridLines: false }] }), n = sh.cols.length;
+          ws.mergeCells(1, 1, 1, n);
+          ws.mergeCells(2, 1, 2, n);
+          ws.getCell(1, 1).value = sh.title;
+          ws.getCell(1, 1).font = { name: "Calibri", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
+          ws.getCell(2, 1).value = sh.sub;
+          ws.getCell(2, 1).font = { name: "Calibri", size: 10, color: { argb: "FFD3EBE0" } };
+          for (let c = 1; c <= n; c++) {
+            ws.getCell(1, c).fill = fl("FF0A3D2F");
+            ws.getCell(2, c).fill = fl("FF0A3D2F");
+            ws.getCell(3, c).fill = fl("FF16A06E");
+            ws.getColumn(c).width = sh.cols[c - 1][1];
+            const h = ws.getCell(4, c);
+            h.value = sh.cols[c - 1][0];
+            h.font = { name: "Calibri", size: 10.5, bold: true, color: { argb: "FFFFFFFF" } };
+            h.fill = fl("FF12805C");
+            h.alignment = { vertical: "middle", horizontal: sh.cols[c - 1][2] === "txt" ? "left" : "center", wrapText: true };
+          }
+          ws.getRow(1).height = 30;
+          ws.getRow(3).height = 4;
+          ws.getRow(4).height = 34;
+          sh.rows.forEach((r, ri) => {
+            const row = ws.getRow(5 + ri);
+            sh.cols.forEach((c, i) => {
+              let v = r[i];
+              if (v === "" || v === undefined || (typeof v === "number" && !isFinite(v))) v = null;
+              const cell = row.getCell(i + 1);
+              cell.value = v;
+              cell.font = { name: "Calibri", size: 10.5 };
+              if (typeof v === "number") cell.numFmt = FM[c[2]] || "#,##0";
+              if (ri % 2) cell.fill = fl("FFF2F8F5");
+            });
+          });
+          if (sh.rows.length) ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: n } };
+        });
+        const buf = await wb.xlsx.writeBuffer(), a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+        a.download = file;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        toast("File Excel dibuat: " + file);
+      }
+      function xlRun(p) {
+        const ft = ftxt(p), bl = S[5].n + " " + S[5].k.slice(0, 4), dn = cur.de < cur.dm,
+          sub = "Periode " + bl + (dn ? " (hari 1\u2013" + cur.de + " dari " + cur.dm + ", BE untuk bulan berjalan)" : " (bulan penuh)") + (ft ? " \u00b7 Filter: " + ft : " \u00b7 Tanpa filter") + " \u00b7 Officer " + OFFICER,
+          fn = (nm) => "Greenlist_" + nm + "_" + S[5].k + ".xlsx", f1 = (x) => (x === null || x === undefined ? null : x / 100);
+        const nmP = { ringkasan: "Ringkasan", tren: "Tren", conv: "Konversi", store: "PerToko", gmroi: "GMROI", moi: "MOI" }[p], sh = [];
+        if (p === "conv") {
+          const q = $("q").value.toLowerCase();
+          sh.push({ name: "Konversi", title: "Konversi Greenlist vs Popular, " + bl, sub,
+            cols: [["Zat aktif", 24, "txt"], ["Pareto", 10, "txt"], ["Brand Greenlist", 30, "txt"], ["Brand Popular", 30, "txt"], ["Unit Popular", 13, "n0"], ["Penjualan Popular (Rp)", 18, "rp"], ["Unit Greenlist", 13, "n0"], ["Penjualan Greenlist (Rp)", 18, "rp"], ["Konversi Unit", 13, "pct"], ["Konversi Rupiah", 13, "pct"]],
+            rows: RC.filter((r) => (r.ai + r.pn + r.cn).toLowerCase().includes(q)).sort((a, b) => (a[sk] > b[sk] ? 1 : -1) * sd).map((r) => [r.ai, r.pr, r.cn, r.pn, r.pq, r.pv, r.cq, r.cv, f1(r.c), f1(r.d)]) });
+        } else if (p === "store") {
+          const q = $("q2").value.toLowerCase(), v = (x) => (x === null ? -1 : x);
+          sh.push({ name: "Per Toko", title: "Per Toko, " + bl, sub,
+            cols: [["Toko", 34, "txt"], ["Penjualan Ethical (Rp)", 20, "rp"], ["Penjualan Popular (Rp)", 20, "rp"], ["Penjualan Greenlist (Rp)", 20, "rp"], ["Kontribusi Greenlist", 14, "pct"], ["Unit Popular", 13, "n0"], ["Unit Greenlist", 13, "n0"], ["Konversi Unit", 13, "pct"], ["Konversi Rupiah", 13, "pct"]],
+            rows: RS.filter(stF).filter((r) => r.s.toLowerCase().includes(q)).sort((a, b) => (sk2 === "s" ? (a.s > b.s ? 1 : -1) : v(a[sk2]) - v(b[sk2])) * sd2).map((r) => [r.s, r.e, r.sp, r.g, f1(r.k), r.up, r.uc, f1(r.cu), f1(r.cv)]) });
+        } else if (p === "moi") {
+          if (!MOIX) return toast("Data MOI belum lengkap, tidak ada yang bisa diekspor.");
+          const { view, cols, rows } = MOIX;
+          sh.push({ name: "Est MOI", title: $("moih").textContent + ", " + PGS.moi.split(".")[0], sub,
+            cols: cols.map((k) => [mlab(view, k), k === "s" || k === "it" ? 38 : 15, k === "s" || k === "it" ? "txt" : k === "gm" || k === "pm" ? "n1" : "n1"]),
+            rows: rows.map((r) => cols.map((k) => k === "s" ? (view === "i" && r.sub ? r.s + " \u00b7 " + r.sub : r.s) : k === "it" ? r.it + " \u00b7 " + r.sub : r[k] === Infinity ? "Tanpa jual" : r[k])) });
+        } else if (p === "gmroi") {
+          if (!GMX) return toast("Belum ada data stok untuk diekspor.");
+          const t = GMX.t;
+          sh.push({ name: "KPI", title: "GMROI dan Stok, " + bl, sub, cols: [["Indikator", 30, "txt"], ["Nilai", 20, "txt"], ["Keterangan", 56, "txt"]], rows: GMX.kp.map((k) => [k[0], k[1], k[2]]) });
+          sh.push({ name: "Per bulan", title: "GMROI, MOI, dan Nilai Stok per Bulan", sub, cols: [["Bulan", 14, "txt"], ["GMROI Greenlist", 16, "pct"], ["MOI (bulan)", 14, "n1"], ["Nilai Stok Akhir (Rp)", 22, "rp"]], rows: GMX.mm.map((z) => [z.l, f1(z.g), z.m, z.c]) });
+          sh.push({ name: "Stok", title: "Stok Gudang dan Toko per " + dlong(GMX.L), sub, cols: [["Kelompok", 30, "txt"], ["Gudang (Rp)", 18, "rp"], ["Toko (Rp)", 18, "rp"], ["Total (Rp)", 18, "rp"], ["% Gudang", 12, "pct"]],
+            rows: [["Greenlist", "gl"], ["Popular (pasangan Greenlist)", "pop"], ["Ethical (Officer)", "eth"]].filter((g) => !FILT.grp || FILT.grp === g[1]).map((g) => [g[0], t[g[1] + "W"], t[g[1] + "S"], t[g[1] + "W"] + t[g[1] + "S"], pct(t[g[1] + "W"], t[g[1] + "W"] + t[g[1] + "S"]) / 100]) });
+        } else if (p === "tren") {
+          const B2 = be(cur), m = FILT.met, on = (k) => !m || m === k, cl = [["Bulan", 16, "txt"]], gv2 = [];
+          [["penjualan", "Penjualan Greenlist (Rp)", "rp", "gl"], ["gp", "GP Greenlist (Rp)", "rp", "glGP"], ["gp", "Margin Greenlist", "pct", "mg"], ["share", "Kontribusi Greenlist", "pct", "sh"], ["conv", "Konversi Greenlist (Rp)", "pct", "cv"], ["eth", "Penjualan Ethical (Rp)", "rp", "eth"], ["eth", "GP Ethical (Rp)", "rp", "ethGP"], ["eth", "Margin Ethical", "pct", "me"]].forEach((c) => { if (on(c[0])) { cl.push([c[1], 22, c[2]]); gv2.push(c[3]); } });
+          const val = (d, k, last) => k === "mg" ? pct(d.glGP, d.gl) / 100 : k === "sh" ? pct(d.gl, d.eth) / 100 : k === "cv" ? pct(d.gl, d.gl + d.pop) / 100 : k === "me" ? pct(d.ethGP, d.eth) / 100 : last && dn ? B2[k] : d[k];
+          sh.push({ name: "Tren", title: "Tren 6 Bulan" + (m ? ": " + FDEF.met[1]().find((o) => o[0] === m)[1] : ""), sub, cols: cl, rows: S.map((o, i) => (o.d ? [o.n + (i === 5 && dn ? " (BE)" : "")].concat(gv2.map((k) => val(o.d, k, i === 5))) : null)).filter(Boolean) });
+        } else {
+          const rows = [];
+          document.querySelectorAll("#kpis .kpi").forEach((k) => rows.push(["KPI", k.querySelector(".l").textContent, k.querySelector(".v").textContent, [k.querySelector(".s").textContent, (k.querySelector(".pill") || {}).textContent].filter(Boolean).join(" \u00b7 ")]));
+          document.querySelectorAll("#hx article").forEach((a) => {
+            const t = a.querySelector("h3").textContent, g = (x, s) => ((x.querySelector(s) || {}).textContent || "").trim();
+            a.querySelectorAll(".hs").forEach((x) => rows.push([t, g(x, "small"), g(x, "b"), g(x, ".pill")]));
+            a.querySelectorAll(".lr").forEach((x) => rows.push([t, ((x.querySelector(".nm") || {}).firstChild || {}).textContent, ((x.querySelector(".vv") || {}).firstChild || {}).textContent, [g(x, ".nm small"), g(x, ".vv small")].filter(Boolean).join(" \u00b7 ")]));
+            a.querySelectorAll(".pj").forEach((x) => rows.push([t, g(x, ".ph span"), g(x, ".ph b"), g(x, "p")]));
+            a.querySelectorAll(".ins li").forEach((x) => rows.push([t, x.textContent.trim(), "", ""]));
+          });
+          sh.push({ name: "Ringkasan", title: "Ringkasan Greenlist, " + bl, sub, cols: [["Bagian", 26, "txt"], ["Item", 44, "txt"], ["Nilai", 22, "txt"], ["Keterangan", 70, "txt"]], rows });
+        }
+        xlExport(fn(nmP), sh);
+      }
       render();
       go("ringkasan");
       pull();
