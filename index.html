@@ -3905,6 +3905,8 @@ th { color: #5c7d6d; }
           .filter(([c, a]) => a[1] > 0 || a[2] > 0)
           .map(([c, a]) => ({
             s: c + " - " + a[0],
+            kd: c,
+            nm: a[0],
             e: a[1],
             g: a[2],
             sp: a[3],
@@ -4042,7 +4044,7 @@ th { color: #5c7d6d; }
               gq = (a ? a.v[2 * i] : 0) * f,
               pq = (a ? a.v[2 * i + 1] : 0) * f;
             if ((gs || ps || gq || pq) && moiF(c, i, gs, gq, ps, pq))
-              D.push({ c, i, s: nm, it: p[0], sub: `${p[7]} \u00b7 ${p[4]}`, gs, gq, gm: est(gs, gq), ps, pq, pm: est(ps, pq) });
+              D.push({ c, i, s: nm, it: p[0], gn: p[7], pn: p[4], kd: c, tn: (a && a.n) || "", sub: `${p[7]} \u00b7 ${p[4]}`, gs, gq, gm: est(gs, gq), ps, pq, pm: est(ps, pq) });
           });
         });
         // kartu ringkasan (pembanding Grand Total di pivot Excel)
@@ -4067,7 +4069,7 @@ th { color: #5c7d6d; }
             const key = view === "s" ? r.c : r.i;
             let g = m.get(key);
             if (!g) {
-              g = { s: view === "s" ? r.s : r.it, sub: view === "s" ? "" : r.sub, n: 0, gs: 0, gq: 0, ps: 0, pq: 0, gl: [], pl: [] };
+              g = { s: view === "s" ? r.s : r.it, kd: r.c, tn: r.tn, gn: r.gn, pn: r.pn, sub: view === "s" ? "" : r.sub, n: 0, gs: 0, gq: 0, ps: 0, pq: 0, gl: [], pl: [] };
               m.set(key, g);
             }
             g.n++;
@@ -5347,14 +5349,17 @@ th { color: #5c7d6d; }
         } else if (p === "store") {
           const q = $("q2").value.toLowerCase(), v = (x) => (x === null ? -1 : x);
           sh.push({ name: "Per Toko", title: "Per Toko, " + bl, sub,
-            cols: [["Toko", 34, "txt"], ["Penjualan Ethical (Rp)", 20, "rp"], ["Penjualan Popular (Rp)", 20, "rp"], ["Penjualan Greenlist (Rp)", 20, "rp"], ["Kontribusi Greenlist", 14, "pct"], ["Unit Popular", 13, "n0"], ["Unit Greenlist", 13, "n0"], ["Konversi Unit", 13, "pct"], ["Konversi Rupiah", 13, "pct"]],
-            rows: RS.filter(stF).filter((r) => r.s.toLowerCase().includes(q)).sort((a, b) => (sk2 === "s" ? (a.s > b.s ? 1 : -1) : v(a[sk2]) - v(b[sk2])) * sd2).map((r) => [r.s, r.e, r.sp, r.g, f1(r.k), r.up, r.uc, f1(r.cu), f1(r.cv)]) });
+            cols: [["Kode Toko", 11, "txt"], ["Nama Toko", 34, "txt"], ["Penjualan Ethical (Rp)", 20, "rp"], ["Penjualan Popular (Rp)", 20, "rp"], ["Penjualan Greenlist (Rp)", 20, "rp"], ["Kontribusi Greenlist", 14, "pct"], ["Unit Popular", 13, "n0"], ["Unit Greenlist", 13, "n0"], ["Konversi Unit", 13, "pct"], ["Konversi Rupiah", 13, "pct"]],
+            rows: RS.filter(stF).filter((r) => r.s.toLowerCase().includes(q)).sort((a, b) => (sk2 === "s" ? (a.s > b.s ? 1 : -1) : v(a[sk2]) - v(b[sk2])) * sd2).map((r) => [r.kd, r.nm, r.e, r.sp, r.g, f1(r.k), r.up, r.uc, f1(r.cu), f1(r.cv)]) });
         } else if (p === "moi") {
           if (!MOIX) return toast("Data MOI belum lengkap, tidak ada yang bisa diekspor.");
           const { view, cols, rows } = MOIX;
-          sh.push({ name: "Est MOI", title: $("moih").textContent + ", " + PGS.moi.split(".")[0], sub,
-            cols: cols.map((k) => [mlab(view, k), k === "s" || k === "it" ? 38 : 15, k === "s" || k === "it" ? "txt" : k === "gm" || k === "pm" ? "n1" : "n1"]),
-            rows: rows.map((r) => cols.map((k) => k === "s" ? (view === "i" && r.sub ? r.s + " \u00b7 " + r.sub : r.s) : k === "it" ? r.it + " \u00b7 " + r.sub : r[k] === Infinity ? "Tanpa jual" : r[k])) });
+          const ZP = [["Zat aktif", 24, "txt", (r) => r.it], ["Brand Popular", 32, "txt", (r) => r.pn], ["Item Greenlist", 32, "txt", (r) => r.gn]],
+            CD = (k) => k === "s" ? (view === "i" ? [["Zat aktif", 24, "txt", (r) => r.s], ZP[1], ZP[2]] : [["Kode Toko", 11, "txt", (r) => r.kd], ["Nama Toko", 34, "txt", (r) => r.tn]])
+              : k === "it" ? ZP
+              : [[mlab(view, k), 15, k === "n" ? "n0" : "n1", (r) => (r[k] === Infinity ? "Tanpa jual" : r[k])]],
+            cd = cols.flatMap(CD);
+          sh.push({ name: "Est MOI", title: $("moih").textContent + ", " + PGS.moi.split(".")[0], sub, cols: cd.map((c) => [c[0], c[1], c[2]]), rows: rows.map((r) => cd.map((c) => c[3](r))) });
         } else if (p === "gmroi") {
           if (!GMX) return toast("Belum ada data stok untuk diekspor.");
           const t = GMX.t;
