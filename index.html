@@ -2473,6 +2473,25 @@ th { color: #5c7d6d; }
 .chip { border-radius: 12px; }
 .toast { background: #0c2e22; }
 .tab[aria-pressed="true"], .mseg button[aria-pressed="true"] { color: var(--brand); }
+
+/* ---- Layout penuh & tombol buka/tutup menu di tepi sidebar ---- */
+.wrap { max-width: none; }
+.edge-toggle { display: none; }
+@media (min-width: 901px) {
+  header #mt { display: none; }
+  .edge-toggle {
+    position: fixed; top: 24px; left: calc(256px - 15px); z-index: 30;
+    width: 30px; height: 30px; padding: 0; display: grid; place-items: center;
+    border-radius: 50%; border: 1px solid var(--line); background: var(--surf); color: var(--brand);
+    box-shadow: 0 4px 14px -4px rgba(4, 30, 22, 0.35); cursor: pointer;
+    transition: left 0.22s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  body.collapsed .edge-toggle { left: calc(72px - 15px); }
+  .edge-toggle:hover { background: var(--brand); color: #fff; transform: scale(1.08); }
+  .edge-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .edge-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.22s ease; }
+  body.collapsed .edge-toggle svg { transform: rotate(180deg); }
+}
 </style>
   </head>
   <body>
@@ -2515,6 +2534,7 @@ th { color: #5c7d6d; }
         <div class="sfoot">Data asli · bulan awal: Okt 2026</div>
       </aside>
       <div class="ov" id="ov"></div>
+      <button class="edge-toggle" id="mt2" type="button" aria-label="Buka atau tutup menu" title="Buka atau tutup menu" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg></button>
       <!-- Konten utama -->
       <main class="wrap">
         <div class="phead" id="phead"></div>
@@ -2546,7 +2566,7 @@ th { color: #5c7d6d; }
               <div class="legend">
                 <span><i style="background: var(--gl)"></i>Aktual berjalan</span
                 ><span
-                  ><i style="background: var(--warn)"></i>BE (Best Estimate)</span
+                  ><i style="background: var(--warn)"></i><b id="lgbe" style="font-weight: inherit">BE (Best Estimate)</b></span
                 ><span><i style="background: var(--mute)"></i>Total bulan lalu</span>
               </div>
             </div>
@@ -2557,7 +2577,7 @@ th { color: #5c7d6d; }
         </div>
         <!-- Halaman 2: Tren -->
         <div class="page" data-p="tren" hidden>
-          <div class="tbar"><span id="tnote"></span><span><i></i>BE bulan berjalan</span></div>
+          <div class="tbar"><span id="tnote"></span><span id="lgbe2"><i></i>BE bulan berjalan</span></div>
           <div class="tgrid" id="tgrid"></div>
         </div>
         <!-- Halaman 3: Conversion -->
@@ -3434,7 +3454,7 @@ th { color: #5c7d6d; }
         const sc = Math.max(b, sep || 0) * 1.04,
           ok = sc > 0,
           w = ok ? Math.min(100, (mtd / sc) * 100) : 0;
-        return `<div class="prow"><div class="plabel"><span>${label}</span><b>${rp(mtd)}</b></div><div class="track"><i class="fill" style="width:${w}%;background:${col}"></i>${ok && b > 0 ? `<span class="tick be" style="left:${(b / sc) * 100}%" title="BE ${rp(b)}"></span>` : ""}${ok && sep ? `<span class="tick sp" style="left:${(sep / sc) * 100}%" title="Total bulan lalu ${rp(sep)}"></span>` : ""}</div></div>`;
+        return `<div class="prow"><div class="plabel"><span>${label}</span><b>${rp(mtd)}</b></div><div class="track"><i class="fill" style="width:${w}%;background:${col}"></i>${ok && b > 0 && b !== mtd ? `<span class="tick be" style="left:${(b / sc) * 100}%" title="BE ${rp(b)}"></span>` : ""}${ok && sep ? `<span class="tick sp" style="left:${(sep / sc) * 100}%" title="Total bulan lalu ${rp(sep)}"></span>` : ""}</div></div>`;
       }
       function prowScaled(label, mtd, sc, col) {
         const w = Math.max(0, Math.min(100, (mtd / sc) * 100)),
@@ -3466,6 +3486,8 @@ th { color: #5c7d6d; }
           ? `Periode berjalan 1\u2013${cur.de} ${bl}, BE dihitung ke ${cur.dm} hari`
           : `Bulan penuh ${bl}`;
         PGS.ringkasan = per;
+        $("lgbe").parentElement.style.display = dn ? "" : "none";
+        $("lgbe2").style.display = dn ? "" : "none";
         // --- Ringkasan: hero ---
         const sh = pct(cur.gl, cur.eth),
           shp = pv ? pct(pv.gl, pv.eth) : 0,
@@ -3475,7 +3497,7 @@ th { color: #5c7d6d; }
           (pv
             ? `${nf(Math.abs(ds))}% ${ds >= 0 ? "lebih tinggi" : "lebih rendah"} dari ${pn} (${nf(shp)}%). `
             : "Belum ada bulan pembanding, unggah Sales GP bulan lalu. ") +
-          `BE akhir bulan: ${nf(pct(B.gl, B.eth))}%.`;
+          (dn ? `BE akhir bulan: ${nf(pct(B.gl, B.eth))}%.` : "");
         $("prog").innerHTML =
           prow("Penjualan Ethical", cur.eth, B.eth, pv && pv.eth, "#7ec8c0") +
           prowScaled("Penjualan Greenlist", cur.gl, cur.eth, "#54d6a4");
@@ -3484,13 +3506,13 @@ th { color: #5c7d6d; }
           vc = pct(cur.gl, cur.gl + cur.pop);
         const bp = (k) =>
           pv
-            ? pill(`BE ${sg(pct(B[k], pv[k]) - 100)}% vs ${pn}`, B[k] >= pv[k])
+            ? pill(`${dn ? "BE " : ""}${sg(pct(B[k], pv[k]) - 100)}% vs ${pn}`, B[k] >= pv[k])
             : neu("Belum ada pembanding");
         const kp = [
           [
             "Penjualan Greenlist",
             rp(cur.gl),
-            `BE ${rp(B.gl)}, AV ${rp(cur.gl / cur.de)}/day`,
+            dn ? `BE ${rp(B.gl)}, AV ${rp(cur.gl / cur.de)}/day` : `AV ${rp(cur.gl / cur.de)}/day`,
             bp("gl"),
           ],
           [
@@ -3612,7 +3634,7 @@ th { color: #5c7d6d; }
           lw = R.filter((r) => r.pq > 0).sort((a, b) => a.c - b.c)[0], low = RS.filter((r) => r.k < 3).length, dsl = pv ? pct(B.gl, pv.gl) - 100 : null;
         const notes = [
           [`Margin GP Greenlist ${nf(gm)}% dibanding Ethical ${nf(em)}%, jadi Greenlist ${gm >= em ? "lebih menguntungkan" : "kurang menguntungkan"} per rupiah penjualan.`, 0],
-          dsl !== null ? [`Penjualan Greenlist BE ${rp(B.gl)}, ${dsl >= 0 ? "naik" : "turun"} ${nf(Math.abs(dsl))}% dibanding total ${pn}.`, dsl < 0] : null,
+          dsl !== null ? [`Penjualan Greenlist ${dn ? "BE " : ""}${rp(B.gl)}, ${dsl >= 0 ? "naik" : "turun"} ${nf(Math.abs(dsl))}% dibanding total ${pn}.`, dsl < 0] : null,
           [`${hi} dari ${R.length} brand Greenlist sudah di atas 50% konversi unit.`, 0],
           lw ? [`Brand paling perlu didorong: ${lw.cn}, konversi ${nf(lw.c)}% vs ${lw.pn}.`, 1] : null,
           RS.length ? [`${low} dari ${RS.length} toko masih berkontribusi di bawah 3% dari Ethical.`, low > RS.length / 2] : null,
@@ -3668,7 +3690,7 @@ th { color: #5c7d6d; }
               pts = p.vals.map((q, i) => (q === null ? null : { i, q, X: x(i), Y: Y(q) })).filter(Boolean),
               dl = (i) => {
                 const a = p.vals[i], b = p.vals[i - 1];
-                return i > 0 && a !== null && b !== null && b ? (a / b - 1) * 100 : null;
+                return i > 0 && a !== null && b !== null ? (p.pp ? a - b : b ? (a / b - 1) * 100 : null) : null;
               },
               dc = (d) => ((p.goodDown ? d <= 0 : d >= 0) ? "du" : "dd"),
               dt = (d) => `${d >= 0 ? "\u25B2" : "\u25BC"} ${nf(Math.abs(d))}%`;
@@ -3705,7 +3727,7 @@ th { color: #5c7d6d; }
         let out = "";
         Object.entries(MT).forEach(([k, [nm, f, fm, bk]]) => {
           const isP = !bk,
-            bv = bk ? B[bk] : null,
+            bv = bk && cur.de < cur.dm ? B[bk] : null,
             act = S[5].d ? f(S[5].d) : null,
             v = S.map((o, i) => (o.d ? (i === 5 && bv !== null ? bv : f(o.d)) : null)),
             vals = v.filter((q) => q !== null);
@@ -3748,7 +3770,7 @@ th { color: #5c7d6d; }
           const gpSvg =
             k === "gp"
               ? stackSvg(S.map((o) => o.l), [
-                  { name: "Margin laba (GP \u00f7 Penjualan)", type: "line", vals: S.map((o) => (o.d ? pct(o.d.glGP, o.d.gl) : null)), fm: (q) => nf(q) + "%", color: "var(--brand2)" },
+                  { name: "Margin laba (GP \u00f7 Penjualan)", type: "line", pp: true, vals: S.map((o) => (o.d ? pct(o.d.glGP, o.d.gl) : null)), fm: (q) => nf(q) + "%", color: "var(--brand2)" },
                   { name: "Laba kotor (GP)", type: "bar", vals: v, fm, color: "var(--gl)", est: bv !== null, act },
                 ])
               : "";
@@ -3763,7 +3785,7 @@ th { color: #5c7d6d; }
         const eS = S.map((o, i) => (o.d ? (i === 5 ? B.eth : o.d.eth) : null));
         out += xc("Penjualan dan Margin Ethical (Officer)", S[5].n + (dnow ? ", BE" : ""), eS, rp,
           stackSvg(lbl, [
-            { name: "Margin laba Ethical (GP \u00f7 Penjualan)", type: "line", vals: S.map((o) => (o.d ? pct(o.d.ethGP, o.d.eth) : null)), fm: (q) => nf(q) + "%", color: "var(--brand2)" },
+            { name: "Margin laba Ethical (GP \u00f7 Penjualan)", type: "line", pp: true, vals: S.map((o) => (o.d ? pct(o.d.ethGP, o.d.eth) : null)), fm: (q) => nf(q) + "%", color: "var(--brand2)" },
             { name: "Penjualan Ethical (Officer)", type: "bar", vals: eS, fm: rp, color: "var(--eth)", est: dnow, act: cur.eth },
           ]));
         const un = (d, c, g) => (d.pr ? MASTER.pairs.reduce((z, r) => { const x = d.pr[r[6]]; return z + (x ? (g ? x[2] * r[8] : x[0] * r[5]) : 0); }, 0) * (c ? fx : 1) : null);
@@ -4259,6 +4281,11 @@ th { color: #5c7d6d; }
           return toast('Format Sales GP tidak dikenali: header "Store" atau "Sales Date" tidak ditemukan.');
         if (m[1] + m[2] !== m[4] + m[5])
           return toast("Periode melewati lebih dari satu bulan. Unggah per bulan ya.");
+        if (+m[3] !== 1)
+          return toast(`Periode harus mulai tanggal 1 (file ini mulai tanggal ${+m[3]}). Unggah dari tanggal 1 sampai tanggal terakhir yang tersedia.`, 7000);
+        const ex = MONTHS[m[1] + "-" + m[2]];
+        if (ex && ex.de > +m[6] && !confirm(`Bulan ini sudah tersimpan sampai tanggal ${ex.de}, sedangkan file ini hanya sampai tanggal ${+m[6]}. Timpa dengan data yang lebih pendek?`))
+          return toast("Unggah dibatalkan, data lama dipertahankan.");
         const hd = rows[h].map((x) => String(x).trim()),
           ix = (n) => hd.indexOf(n);
         const I = {
@@ -4408,6 +4435,10 @@ th { color: #5c7d6d; }
           b = be(d);
         return { ck, gp: b.glGP, hpp: (d.gl - d.glGP) * f, gpe: b.ethGP, hppe: (d.eth - d.ethGP) * f };
       }
+      const curBE = () => {
+        const d = MONTHS[Object.keys(MONTHS).sort().pop()];
+        return !!d && d.de < d.dm;
+      };
       const gv = (t, B) => {
         const c = sv(t, "gl");
         return { g: pct(B.gp, c), m: B.hpp ? c / B.hpp : 0, c };
@@ -4450,7 +4481,7 @@ th { color: #5c7d6d; }
           if (n <= 8 || i === n - 1 || i === 0)
             s += `<text class="tv" x="${a[0]}" y="${a[1] - 14}" text-anchor="middle">${fm(a[2])}</text>`;
         });
-        s += `<text class="t" x="8" y="14">${n < 2 ? "Baru 1 bulan terisi. Tren bulanan terisi seiring bulan berjalan dan stok harian diunggah." : "Stok bulanan = rata-rata stok harian; bulan berjalan memakai GP dan HPP BE"}</text>`;
+        s += `<text class="t" x="8" y="14">${n < 2 ? "Baru 1 bulan terisi. Tren bulanan terisi seiring bulan berjalan dan stok harian diunggah." : "Stok bulanan = rata-rata stok harian" + (curBE() ? "; bulan berjalan memakai GP dan HPP BE" : "")}</text>`;
         $("gch").innerHTML = s;
       }
       function gmr() {
@@ -4477,18 +4508,18 @@ th { color: #5c7d6d; }
           ge = pct(B.gpe, a("eth")),
           m = B.hpp ? t.glS / B.hpp : 0,
           me = B.hppe ? t.ethS / B.hppe : 0;
-        PGS.gmroi = `Stok per ${dlong(L)}. GMROI = GP bulan berjalan (BE) \u00f7 rata-rata stok harian bulan ini. MOI = stok toko (tanpa gudang) \u00f7 HPP sebulan (BE)`;
+        PGS.gmroi = `Stok per ${dlong(L)}. GMROI = GP ${curBE() ? "bulan berjalan (BE)" : "bulan ini"} \u00f7 rata-rata stok harian bulan ini. MOI = stok toko (tanpa gudang) \u00f7 HPP sebulan${curBE() ? " (BE)" : ""}`;
         const kp = [
           [
             "GMROI Greenlist",
             nf(g) + "%",
-            `GP BE ${rp(B.gp)}, AV stok ${rp(avg)}`,
+            `GP${curBE() ? " BE" : ""} ${rp(B.gp)}, AV stok ${rp(avg)}`,
             neu(`AV dari ${inM.length || 1} hari stok`),
           ],
           [
             "MOI Greenlist",
             nf(m) + " bulan",
-            `Stok toko ${rp(t.glS)}, HPP BE ${rp(B.hpp)}`,
+            `Stok toko ${rp(t.glS)}, HPP${curBE() ? " BE" : ""} ${rp(B.hpp)}`,
             neu("Makin kecil makin ringan"),
           ],
           [
@@ -4548,7 +4579,7 @@ th { color: #5c7d6d; }
         $("gnote").textContent =
           mm.length < 2
             ? "Baru 1 bulan terisi. Tren terisi seiring bulan berjalan dan stok harian diunggah."
-            : "Stok bulanan = AV stok harian. Bulan berjalan memakai GP dan HPP BE. Angka berpanah = perubahan dibanding bulan sebelumnya.";
+            : "Stok bulanan = AV stok harian. " + (curBE() ? "Bulan berjalan memakai GP dan HPP BE. " : "") + "Angka berpanah = perubahan dibanding bulan sebelumnya.";
       }
       function doSoh(rows, dk) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dk || "")) return toast("Pilih tanggal stok dulu di kotak tanggal.");
@@ -4649,13 +4680,15 @@ th { color: #5c7d6d; }
       try {
         if (innerWidth > 900 && localStorage.getItem("gl_side") === "1") document.body.classList.add("collapsed");
       } catch (e) {}
-      $("mt").onclick = () => {
+      $("mt").onclick = $("mt2").onclick = () => {
         if (innerWidth <= 900) {
           const o = document.body.classList.toggle("open");
           $("mt").setAttribute("aria-expanded", o);
+          $("mt2").setAttribute("aria-expanded", o);
         } else {
           const c = document.body.classList.toggle("collapsed");
           $("mt").setAttribute("aria-expanded", !c);
+          $("mt2").setAttribute("aria-expanded", !c);
           try {
             localStorage.setItem("gl_side", c ? "1" : "0");
           } catch (e) {}
