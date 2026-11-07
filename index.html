@@ -2296,6 +2296,11 @@ body.open .ov {
   body { background: #ffffff !important; }
 }
 
+.mseg { display: inline-flex; gap: 4px; padding: 4px; background: var(--seg); border-radius: 12px; margin: 0 0 12px; }
+.mseg button { border: 0; background: transparent; color: var(--mute); font: inherit; font-size: 13.5px; font-weight: 700; padding: 7px 16px; border-radius: 9px; cursor: pointer; }
+.mseg button[aria-pressed="true"] { background: var(--surf); color: var(--brand); box-shadow: 0 1px 3px rgba(15, 27, 45, 0.14); }
+.mseg button:focus-visible { outline: 2px solid var(--gl); outline-offset: 1px; }
+#moith th { cursor: pointer; user-select: none; }
 </style>
   </head>
   <body>
@@ -2335,6 +2340,10 @@ body.open .ov {
         <button class="nv" data-p="gmroi">
           <svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4" /></svg
           ><span class="nl">GMROI</span>
+        </button>
+        <button class="nv" data-p="moi">
+          <svg viewBox="0 0 24 24"><path d="M4 20V11M10 20V5M16 20v-6M22 20H2" /></svg
+          ><span class="nl">MOI Toko &amp; Item</span>
         </button>
         <button class="nv" data-p="data">
           <svg viewBox="0 0 24 24">
@@ -2467,6 +2476,34 @@ body.open .ov {
             </div>
           </section>
         </div>
+        <!-- Halaman 5b: MOI per Toko dan per Item -->
+        <div class="page" data-p="moi" hidden>
+          <section class="sstrip" id="moik"></section>
+          <section class="card">
+            <div class="sec">
+              <h3 id="moih">MOI per Toko</h3>
+              <input type="search" id="moiq" placeholder="Cari toko" aria-label="Cari" />
+            </div>
+            <div class="mseg" id="moiv" role="group" aria-label="Tampilan MOI">
+              <button type="button" data-v="s" aria-pressed="true">Per Toko</button>
+              <button type="button" data-v="i" aria-pressed="false">Per Item</button>
+            </div>
+            <p class="sub" id="moisum" style="margin: 0 0 12px"></p>
+            <div class="tw rt">
+              <table>
+                <thead>
+                  <tr id="moith"></tr>
+                </thead>
+                <tbody id="moitb"></tbody>
+              </table>
+            </div>
+            <p class="sub" style="margin: 12px 4px 0">
+              MOI = stok toko &divide; COGS BE. COGS = Sales Cost. COGS BE = COGS berjalan &divide; hari berjalan &times; hari dalam bulan (bulan yang sudah penuh memakai angka aktual).
+              Stok gudang (1001) tidak dihitung. Makin kecil makin ringan. "Tanpa jual" = ada stok tetapi tidak ada penjualan bulan ini.
+            </p>
+          </section>
+        </div>
+
         <!-- Halaman 6: Data sumber -->
         <div class="page" data-p="data" hidden>
           <section class="card">
@@ -3153,6 +3190,7 @@ body.open .ov {
           Object.keys(STK).forEach((k) => {
             if (k.length !== 10) delete STK[k];
           });
+          trimDet();
           cache();
           render();
           setSync(
@@ -3341,6 +3379,7 @@ body.open .ov {
         rs();
         gmr();
         rt2();
+        moi();
         homeX();
       }
 
@@ -3698,6 +3737,214 @@ body.open .ov {
       }
 
       // ============================================================
+      // 7c. MOI PER TOKO DAN PER ITEM
+      // MOI = stok toko (tanpa gudang 1001) / COGS BE. COGS = Sales Cost.
+      // COGS BE = COGS berjalan / hari berjalan x hari dalam bulan (sama dengan MOI di halaman GMROI).
+      // ============================================================
+      let mv = "s",
+        msk = "me",
+        msd = -1;
+      // rincian per toko dan per item hanya disimpan untuk 2 tanggal SOH terakhir supaya penyimpanan browser tetap ringan
+      function trimDet() {
+        Object.keys(STK)
+          .filter((k) => k.length === 10)
+          .sort()
+          .slice(0, -2)
+          .forEach((k) => {
+            if (STK[k]) {
+              delete STK[k].sk;
+              delete STK[k].it;
+            }
+          });
+      }
+      const MC = {
+        s: [
+          ["Toko", "s", "s"],
+          ["Stok Toko Ethical", "n", "se"],
+          ["COGS BE Ethical", "n", "he"],
+          ["MOI Ethical", "n", "me"],
+          ["Stok Toko Greenlist", "n", "sg"],
+          ["COGS BE Greenlist", "n", "hg"],
+          ["MOI Greenlist", "n", "mg"],
+        ],
+        i: [
+          ["Zat aktif", "s", "s"],
+          ["Stok Toko Greenlist", "n", "sg"],
+          ["COGS BE Greenlist", "n", "hg"],
+          ["MOI Greenlist", "n", "mg"],
+          ["Stok Toko Popular", "n", "sp"],
+          ["COGS BE Popular", "n", "hp"],
+          ["MOI Popular", "n", "mp"],
+        ],
+      };
+      const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      const mo1 = (s, h) => (h > 0 ? s / h : s > 0 ? Infinity : null);
+      function moi() {
+        const ks = Object.keys(MONTHS).sort(),
+          ck = ks[ks.length - 1],
+          d = MONTHS[ck],
+          ds = Object.keys(STK).filter((k) => k.length === 10).sort(),
+          L = ds[ds.length - 1],
+          t = L ? STK[L] : null,
+          f = d.de < d.dm ? d.dm / d.de : 1,
+          bl = FN[+ck.slice(5, 7) - 1] + " " + ck.slice(0, 4);
+        const view = mv,
+          cols = MC[view];
+        $("moih").textContent = view === "s" ? "MOI per Toko" : "MOI per Item";
+        $("moiq").placeholder = view === "s" ? "Cari toko" : "Cari zat aktif atau nama item";
+        document.querySelectorAll("#moiv button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === view));
+        $("moith").innerHTML = cols
+          .map(
+            (c, i) =>
+              `<th class="${c[1]}" data-i="${i}" aria-sort="${msk === c[2] ? (msd > 0 ? "ascending" : "descending") : "none"}">${c[0]}${msk === c[2] ? (msd > 0 ? " \u25B2" : " \u25BC") : ""}</th>`,
+          )
+          .join("");
+        PGS.moi = t
+          ? `Stok toko per ${dlong(L)} \u00f7 COGS BE ${bl}. Stok gudang tidak dihitung`
+          : "Unggah file SOH dan Sales GP di menu Data sumber untuk mengisi halaman ini";
+        const empty = (msg) => {
+          $("moik").innerHTML = "";
+          $("moisum").textContent = msg;
+          $("moitb").innerHTML = `<tr><td colspan="7">${msg}</td></tr>`;
+        };
+        let rows = [],
+          tot;
+        if (view === "s") {
+          const okS = t && t.sk && d.st && Object.values(d.st).some((a) => a.length > 6);
+          if (!okS)
+            return empty(
+              "Data per toko belum lengkap. Unggah ulang Sales GP bulan ini dan SOH terbaru di menu Data sumber, lalu buka halaman ini lagi.",
+            );
+          const codes = new Set(Object.keys(t.sk).concat(Object.keys(d.st)));
+          codes.delete("1001");
+          codes.forEach((c) => {
+            const a = d.st[c] || [],
+              z = t.sk[c] || [0, 0],
+              he = (a[6] || 0) * f,
+              hg = (a[7] || 0) * f;
+            if (z[0] > 0 || z[1] > 0 || he > 0 || hg > 0)
+              rows.push({
+                s: c + (a[0] ? " - " + a[0] : ""),
+                se: z[0], he, me: mo1(z[0], he),
+                sg: z[1], hg, mg: mo1(z[1], hg),
+              });
+          });
+          tot = ["se", "he", "sg", "hg"].map((k) => rows.reduce((q, r) => q + Math.max(0, r[k]), 0));
+        } else {
+          const okI = t && t.it && d.pc;
+          if (!okI)
+            return empty(
+              "Data per item belum lengkap. Unggah ulang Sales GP bulan ini dan SOH terbaru di menu Data sumber, lalu buka halaman ini lagi.",
+            );
+          MASTER.pairs.forEach((p) => {
+            const k = p[6],
+              pc = d.pc[k] || [0, 0],
+              z = t.it[k] || [0, 0],
+              hg = pc[1] * f,
+              hp = pc[0] * f;
+            rows.push({
+              s: p[0], n: `${p[7]} \u00b7 ${p[4]}`,
+              sg: z[0], hg, mg: mo1(z[0], hg),
+              sp: z[1], hp, mp: mo1(z[1], hp),
+            });
+          });
+          tot = ["sg", "hg", "sp", "hp"].map((k) => rows.reduce((q, r) => q + Math.max(0, r[k]), 0));
+        }
+        // kartu ringkasan
+        const fin = (k) => rows.filter((r) => isFinite(r[k]) && r[k] !== null);
+        const top = (k) => fin(k).sort((a, b) => b[k] - a[k])[0];
+        const mt = (a, b) => (b > 0 ? nf(a / b) + " bulan" : "-");
+        let cards;
+        if (view === "s") {
+          const te = top("me"),
+            nj = rows.filter((r) => r.se > 0 && r.he <= 0);
+          cards = [
+            ["MOI Ethical, semua toko", mt(tot[0], tot[1]), `Stok toko ${rp(tot[0])}, COGS BE ${rp(tot[1])}`],
+            ["MOI Greenlist, semua toko", mt(tot[2], tot[3]), `Stok toko ${rp(tot[2])}, COGS BE ${rp(tot[3])}`],
+            ["MOI Ethical tertinggi", te ? nf(te.me) + " bulan" : "-", te ? esc(te.s) : ""],
+            [
+              "Toko ada stok tanpa penjualan",
+              nj.length + " toko",
+              "Stok Ethical " + rp(nj.reduce((q, r) => q + r.se, 0)),
+            ],
+          ];
+        } else {
+          const tg = top("mg"),
+            nj = rows.filter((r) => (r.sg > 0 && r.hg <= 0) || (r.sp > 0 && r.hp <= 0));
+          cards = [
+            ["MOI Greenlist, semua toko", mt(tot[0], tot[1]), `Stok toko ${rp(tot[0])}, COGS BE ${rp(tot[1])}`],
+            ["MOI Popular, semua toko", mt(tot[2], tot[3]), `Stok toko ${rp(tot[2])}, COGS BE ${rp(tot[3])}`],
+            ["MOI Greenlist tertinggi", tg ? nf(tg.mg) + " bulan" : "-", tg ? esc(tg.s) : ""],
+            ["Item ada stok tanpa penjualan", nj.length + " item", "Greenlist atau Popular"],
+          ];
+        }
+        $("moik").innerHTML = cards.map((k) => `<div><small>${k[0]}</small><b>${k[1]}</b><em>${k[2]}</em></div>`).join("");
+        $("moisum").textContent =
+          `${rows.length} ${view === "s" ? "toko" : "item"}. Stok per ${dlong(L)}, COGS BE ${bl}` +
+          (f > 1 ? ` (1\u2013${d.de} dari ${d.dm} hari)` : "") +
+          (L.slice(0, 7) !== ck ? `. Perhatian: tanggal stok bukan di bulan ${bl}` : "") + ".";
+        // urut dan cari
+        const q = $("moiq").value.toLowerCase(),
+          v = (x) => (x === null || x === undefined ? -1 : x);
+        rows = rows
+          .filter((r) => (r.s + (r.n || "")).toLowerCase().includes(q))
+          .sort((a, b) => {
+            const x = msk === "s" ? a.s : v(a[msk]),
+              y = msk === "s" ? b.s : v(b[msk]);
+            return (x > y ? 1 : x < y ? -1 : 0) * msd;
+          });
+        const mx = (k) => Math.max(0.1, ...fin(k).map((r) => r[k])),
+          mm = {};
+        cols.forEach((c) => {
+          if (c[2][0] === "m") mm[c[2]] = mx(c[2]);
+        });
+        const cell = (x, k) =>
+          x === null
+            ? '<span style="color:var(--mute)">\u2013</span>'
+            : x === Infinity
+              ? neu("Tanpa jual")
+              : `<div class="cv"><div class="cb"><i style="width:${Math.min(100, (x / mm[k]) * 100)}%"></i></div><b>${nf(x)}</b></div>`;
+        const Lb = (i) => `data-label="${cols[i][0]}"`,
+          rf = (x) => `title="Rp ${Math.round(x).toLocaleString("id-ID")}"`;
+        $("moitb").innerHTML = rows.length
+          ? rows
+              .map(
+                (r) =>
+                  `<tr><td ${Lb(0)}>${esc(r.s)}${r.n ? `<span class="m2">${esc(r.n)}</span>` : ""}</td>` +
+                  cols
+                    .slice(1)
+                    .map((c, j) => {
+                      const k = c[2];
+                      return k[0] === "m"
+                        ? `<td ${Lb(j + 1)}>${cell(r[k], k)}</td>`
+                        : `<td class="n" ${Lb(j + 1)} ${rf(r[k])}>${rp(r[k])}</td>`;
+                    })
+                    .join("") +
+                  "</tr>",
+              )
+              .join("")
+          : '<tr><td colspan="7">Tidak ada yang cocok. Coba kata kunci lain.</td></tr>';
+      }
+      $("moiv").onclick = (e) => {
+        const b = e.target.closest("button");
+        if (!b || b.dataset.v === mv) return;
+        mv = b.dataset.v;
+        msk = mv === "s" ? "me" : "mg";
+        msd = -1;
+        $("moiq").value = "";
+        moi();
+      };
+      $("moith").onclick = (e) => {
+        const h = e.target.closest("th");
+        if (!h) return;
+        const c = MC[mv][h.dataset.i];
+        msd = msk === c[2] ? -msd : c[2] === "s" ? 1 : -1;
+        msk = c[2];
+        moi();
+      };
+      $("moiq").oninput = () => moi();
+
+      // ============================================================
       // 8. DATA SUMBER (upload master, Sales GP, SOH)
       // ============================================================
       const tt = $("toast");
@@ -3834,6 +4081,9 @@ body.open .ov {
           n: ix("Net Sales"),
           g: ix("GP"),
         };
+        // COGS = kolom "Sales Cost" (bila tidak ada, dihitung Net Sales - GP)
+        let ci = hd.findIndex((x) => /^sales\s*cost$/i.test(x));
+        if (ci < 0) ci = hd.findIndex((x) => /cost|cogs|hpp/i.test(x));
         if (Object.values(I).some((v) => v < 0))
           return toast("Kolom Officer, Item Code, Quantity Sold, Net Sales, atau GP tidak ditemukan.");
         const pm = {},
@@ -3855,22 +4105,25 @@ body.open .ov {
           popGP: 0,
           pr: {},
           pg: {},
+          pc: {},
           st: {},
         };
-        MASTER.pairs.forEach((r) => ((o.pr[r[6]] = [0, 0, 0, 0]), (o.pg[r[6]] = [0, 0])));
+        MASTER.pairs.forEach((r) => ((o.pr[r[6]] = [0, 0, 0, 0]), (o.pg[r[6]] = [0, 0]), (o.pc[r[6]] = [0, 0])));
         for (let i = h + 1; i < rows.length; i++) {
           const r = rows[i];
           if (!r[I.c] || r[0] === "Total :") continue;
           const net = +r[I.n] || 0,
             gp = +r[I.g] || 0,
             qty = +r[I.q] || 0,
+            cost = ci >= 0 ? +r[ci] || 0 : net - gp,
             code = norm(r[I.c]);
           const sc = String(r[0]).trim(),
-            sa = o.st[sc] || (o.st[sc] = [String(r[1]).trim(), 0, 0, 0, 0, 0]);
+            sa = o.st[sc] || (o.st[sc] = [String(r[1]).trim(), 0, 0, 0, 0, 0, 0, 0]);
           if (String(r[I.o]).toUpperCase().includes(OFFICER)) {
             o.eth += net;
             o.ethGP += gp;
             sa[1] += net;
+            sa[6] += cost;
           }
           if (code in cmx) {
             const k = MASTER.pairs[cmx[code]][6];
@@ -3879,7 +4132,9 @@ body.open .ov {
             o.pr[k][2] += qty;
             o.pr[k][3] += net;
             o.pg[k][1] += gp;
+            o.pc[k][1] += cost;
             sa[2] += net;
+            sa[7] += cost;
             sa[4] += qty * MASTER.pairs[cmx[code]][8];
           } else if (code in pm) {
             const k = MASTER.pairs[pm[code]][6];
@@ -3888,16 +4143,18 @@ body.open .ov {
             o.pr[k][0] += qty;
             o.pr[k][1] += net;
             o.pg[k][0] += gp;
+            o.pc[k][0] += cost;
             sa[3] += net;
             sa[5] += qty * MASTER.pairs[pm[code]][5];
           }
         }
         Object.values(o.st).forEach((a) => {
-          for (let j = 1; j < 6; j++) a[j] = Math.round(a[j] * 10) / 10;
+          for (let j = 1; j < 8; j++) a[j] = Math.round(a[j] * 10) / 10;
         });
         if (!o.eth) return toast("Tidak ada baris untuk Officer ARISYANTI. Cek filenya.");
         KEYS.forEach((k) => (o[k] = Math.round(o[k])));
         Object.values(o.pg).forEach((a) => ((a[0] = Math.round(a[0])), (a[1] = Math.round(a[1]))));
+        Object.values(o.pc).forEach((a) => ((a[0] = Math.round(a[0])), (a[1] = Math.round(a[1]))));
         MONTHS[m[1] + "-" + m[2]] = o;
         save("month:" + m[1] + "-" + m[2]);
         render();
@@ -4123,6 +4380,10 @@ body.open .ov {
           ch[r[6]] = 1;
         });
         const o = { ethW: 0, ethS: 0, glW: 0, glS: 0, popW: 0, popS: 0 };
+        const dsk = {},
+          dit = {},
+          pk = {};
+        MASTER.pairs.forEach((r) => (pk[r[3]] = r[6]));
         for (let i = h + 1; i < rows.length; i++) {
           const r = rows[i];
           if (!r[I.c]) continue;
@@ -4132,10 +4393,24 @@ body.open .ov {
           if (String(r[I.o]).toUpperCase().includes(OFFICER)) o["eth" + w] += v;
           if (code in ch) o["gl" + w] += v;
           else if (code in pp) o["pop" + w] += v;
+          if (w === "S") {
+            const sc = String(r[I.s]).trim(),
+              a = dsk[sc] || (dsk[sc] = [0, 0]);
+            if (String(r[I.o]).toUpperCase().includes(OFFICER)) a[0] += v;
+            if (code in ch) {
+              a[1] += v;
+              (dit[code] || (dit[code] = [0, 0]))[0] += v;
+            } else if (code in pp) (dit[pk[code]] || (dit[pk[code]] = [0, 0]))[1] += v;
+          }
         }
         if (!o.ethW && !o.ethS) return toast("Tidak ada stok untuk Officer ARISYANTI. Cek filenya.");
         Object.keys(o).forEach((k) => (o[k] = Math.round(o[k])));
+        // rincian untuk menu MOI Toko & Item: [Ethical, Greenlist] per toko, [Greenlist, Popular] per item (stok toko saja)
+        [dsk, dit].forEach((x) => Object.values(x).forEach((a) => ((a[0] = Math.round(a[0])), (a[1] = Math.round(a[1])))));
+        o.sk = dsk;
+        o.it = dit;
         STK[dk] = o;
+        trimDet();
         Object.keys(STK)
           .sort()
           .slice(0, -900)
@@ -4157,6 +4432,7 @@ body.open .ov {
         conv: "Konversi",
         store: "Per Toko",
         gmroi: "GMROI",
+        moi: "MOI Toko & Item",
         data: "Data sumber",
       };
       PGS.tren = "Enam bulan terakhir: garis di atas untuk arah tren, batang di bawah untuk nilainya";
