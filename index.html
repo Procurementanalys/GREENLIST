@@ -2501,6 +2501,7 @@ th { color: #5c7d6d; }
 .fbar .btn.xl { margin-left: auto; background: var(--brand); color: #fff; border-color: transparent; }
 @media (max-width: 600px) { .fbar .fl, .fbar select { width: 100%; max-width: none; } .fbar .btn.xl { margin-left: 0; } }
 
+#tnote:empty, #gnote:empty { display: none; }
 /* ---- Animasi ---- */
 @keyframes rise { from { opacity: 0; transform: translateY(22px) scale(0.985); } }
 @keyframes growx { from { transform: scaleX(0); } }
@@ -2643,10 +2644,6 @@ th { color: #5c7d6d; }
                 <tbody id="tb"></tbody>
               </table>
             </div>
-            <p class="sub" style="margin: 12px 4px 0">
-              Label "Popular ~0" berarti
-              Popular hampir tidak terjual, jadi angka sekitar 100% bukan prestasi pasar.
-            </p>
           </section>
         </div>
         <!-- Halaman 4: Per Store (Ethical vs Greenlist) -->
@@ -2667,10 +2664,6 @@ th { color: #5c7d6d; }
                 <tbody id="tb2"></tbody>
               </table>
             </div>
-            <p class="sub" style="margin: 12px 4px 0">
-              Unit = jumlah jual × isi per kemasan dari master (tablet atau tube). Popular = pasangan pembanding
-              dari Greenlist.
-            </p>
           </section>
         </div>
 
@@ -2739,12 +2732,6 @@ th { color: #5c7d6d; }
                 <button type="button" class="btn" data-g="l">Akhir</button>
               </span>
             </div>
-            <p class="sub" style="margin: 12px 4px 0">
-              Est MOI = SOH Qty &divide; Qty jual, sama seperti kolom Est MOI di Excel. Per Toko dan Per Item = rata-rata Est MOI dari
-              baris toko &times; item (seperti Average of Est MOI di pivot), sedangkan SOH dan Qty jual adalah totalnya. Stok gudang (1001)
-              tidak dihitung. Bulan yang belum selesai memakai Qty jual BE (diproyeksikan ke akhir bulan), bulan yang sudah penuh memakai
-              angka aktual. "Tanpa jual" = ada stok tetapi tidak ada penjualan.
-            </p>
           </section>
         </div>
 
@@ -3661,7 +3648,7 @@ th { color: #5c7d6d; }
             pts = v.map((q, i) => (q === null ? null : [4 + i * 24.4, 32 - ((q - mn) / rg) * 26])).filter(Boolean);
           return `<svg class="sp" viewBox="0 0 130 38" aria-hidden="true">${pts.length > 1 ? `<polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="var(--gl)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ""}<circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="4.5" fill="${est ? "var(--warn)" : "var(--gl)"}"/></svg>`;
         };
-        const c2 = `<article class="card c7"><div class="sec"><h3>Sorotan 6 bulan</h3><span class="sub">${dn ? "Bulan berjalan memakai BE untuk nilai rupiah dan unit" : "Perubahan dibanding bulan sebelumnya"}</span></div><div class="hsg">${defs
+        const c2 = `<article class="card c7"><div class="sec"><h3>Sorotan 6 bulan</h3></div><div class="hsg">${defs
           .map(([lb, fn, fm, isP]) => {
             const v = S.map((o, i) => (o.d ? fn(o.d, i === 5) : null)), a = v[5], b = v[4];
             const d = a === null || b === null ? null : isP ? a - b : b ? (a / b - 1) * 100 : null;
@@ -3709,7 +3696,7 @@ th { color: #5c7d6d; }
           [1, "Penjualan dan margin Ethical (Officer)", "Pembanding Greenlist, setara Poison B dan C di Malaysia"],
           [hasPg, "Margin per SKU Greenlist", hasPg ? "GP dan penjualan per brand dari file Sales GP" : "Unggah ulang Sales GP bulan ini untuk mengisi"],
         ];
-        const c6 = `<article class="card c12"><div class="sec"><h3>Kelengkapan data</h3><span class="sub">Dibandingkan dengan dashboard Tableau Green List</span></div><div class="dchk">${ck.map((k) => `<div class="dc ${k[0] ? "" : "no"}"><span class="st">${k[0] ? "\u2713" : "!"}</span><div><b>${k[1]}</b><span>${k[2]}</span></div></div>`).join("")}</div></article>`;
+        const c6 = `<article class="card c12"><div class="sec"><h3>Kelengkapan data</h3></div><div class="dchk">${ck.map((k) => `<div class="dc ${k[0] ? "" : "no"}"><span class="st">${k[0] ? "\u2713" : "!"}</span><div><b>${k[1]}</b><span>${k[2]}</span></div></div>`).join("")}</div></article>`;
         $("hx").innerHTML = c1 + c2 + c3 + c4 + c5 + c7 + c6;
       }
 
@@ -3768,7 +3755,7 @@ th { color: #5c7d6d; }
         $("tnote").textContent =
           n < 2
             ? "Baru 1 bulan terisi. Unggah Sales GP bulan lain di menu Data sumber untuk mengisi tren."
-            : "Garis menunjukkan arah tren, batang menunjukkan nilainya. Angka berpanah: hijau ▲ = naik, merah ▼ = turun dibanding bulan sebelumnya.";
+            : "";
         let out = "";
         Object.entries(MT).forEach(([k, [nm, f, fm, bk]]) => {
           if (FILT.met && FILT.met !== k) return;
@@ -3892,12 +3879,12 @@ th { color: #5c7d6d; }
       // kolom: [nama, keterangan rumus, rata, kunci, kelas sel]
       const cols2 = [
         ["Toko", "", "s", "s", ""],
-        ["Penjualan Ethical", "semua Ethical", "n", "e", ""],
+        ["Penjualan Ethical", "", "n", "e", ""],
         ["Penjualan Popular", "", "n", "sp", ""],
         ["Penjualan Greenlist", "", "n", "g", "gl"],
         ["Kontribusi Greenlist", "", "s", "k", ""],
-        ["Unit Popular", "tablet/tube", "n", "up", ""],
-        ["Unit Greenlist", "tablet/tube", "n", "uc", "gl"],
+        ["Unit Popular", "", "n", "up", ""],
+        ["Unit Greenlist", "", "n", "uc", "gl"],
         ["Konversi Unit", "", "s", "cu", ""],
         ["Konversi Rupiah", "", "s", "cv", ""],
       ];
@@ -4064,7 +4051,7 @@ th { color: #5c7d6d; }
           return stop("Master Greenlist berubah sejak data diunggah. Unggah ulang Sales GP dan SOH.");
         const f = sl.de < sl.dm ? sl.dm / sl.de : 1,
           bl = FN[+sl.ym.slice(5, 7) - 1] + " " + sl.ym.slice(0, 4);
-        PGS.moi = `SOH per ${dlong(so.dk)} \u00f7 Qty jual ${bl}${f > 1 ? " (BE)" : ""}. Stok gudang tidak dihitung`;
+        PGS.moi = `SOH per ${dlong(so.dk)}, penjualan ${bl}`;
         // baris toko x item
         const D = [],
           codes = new Set(Object.keys(sl.q).concat(Object.keys(so.s)));
@@ -4263,7 +4250,7 @@ th { color: #5c7d6d; }
           ) +
           card(
             "BE",
-            "Dihitung otomatis: aktual \u00f7 hari berjalan \u00d7 hari dalam bulan. Tidak perlu upload.",
+            "Hapus semua data yang sudah diunggah dan kembali ke data awal.",
             '<button class="btn" id="rst">Hapus data tersimpan</button>',
           ) +
           card(
@@ -4532,7 +4519,7 @@ th { color: #5c7d6d; }
           if (n <= 8 || i === n - 1 || i === 0)
             s += `<text class="tv" x="${a[0]}" y="${a[1] - 14}" text-anchor="middle">${fm(a[2])}</text>`;
         });
-        s += `<text class="t" x="8" y="14">${n < 2 ? "Baru 1 bulan terisi. Tren bulanan terisi seiring bulan berjalan dan stok harian diunggah." : "Stok bulanan = rata-rata stok harian" + (curBE() ? "; bulan berjalan memakai GP dan HPP BE" : "")}</text>`;
+        s += `<text class="t" x="8" y="14">${n < 2 ? "Baru 1 bulan terisi. Tren bulanan terisi seiring bulan berjalan dan stok harian diunggah." : ""}</text>`;
         $("gch").innerHTML = s;
       }
       function gmr() {
@@ -4560,7 +4547,7 @@ th { color: #5c7d6d; }
           ge = pct(B.gpe, a("eth")),
           m = B.hpp ? t.glS / B.hpp : 0,
           me = B.hppe ? t.ethS / B.hppe : 0;
-        PGS.gmroi = `Stok per ${dlong(L)}. GMROI = GP ${curBE() ? "bulan berjalan (BE)" : "bulan ini"} \u00f7 rata-rata stok harian bulan ini. MOI = stok toko (tanpa gudang) \u00f7 HPP sebulan${curBE() ? " (BE)" : ""}`;
+        PGS.gmroi = `Stok per ${dlong(L)}`;
         const kp = [
           [
             "GMROI Greenlist",
@@ -4572,7 +4559,7 @@ th { color: #5c7d6d; }
             "MOI Greenlist",
             nf(m) + " bulan",
             `Stok toko ${rp(t.glS)}, HPP${curBE() ? " BE" : ""} ${rp(B.hpp)}`,
-            neu("Makin kecil makin ringan"),
+            "",
           ],
           [
             "Stok Akhir Greenlist",
@@ -4631,7 +4618,7 @@ th { color: #5c7d6d; }
         $("gnote").textContent =
           mm.length < 2
             ? "Baru 1 bulan terisi. Tren terisi seiring bulan berjalan dan stok harian diunggah."
-            : "Stok bulanan = AV stok harian. " + (curBE() ? "Bulan berjalan memakai GP dan HPP BE. " : "") + "Angka berpanah = perubahan dibanding bulan sebelumnya.";
+            : "";
         GMX = { kp, mm, t, L };
       }
       function doSoh(rows, dk) {
